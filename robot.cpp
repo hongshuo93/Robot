@@ -19,7 +19,7 @@ int keyScan(int pin) {
         Serial.print("value:");
         Serial.println(value);
     }
-    
+    // 0 1 2 3 4 5 6 7 8 9
     int numArray[] = {0, 870, 738, 274, 453, 600,852,682,169,341,511}; // 按钮对应的电压值
     for (int idx = 1; idx <= 5; idx++) { // 修正循环范围，数组索引从0开始
         int absDiff = abs(value - numArray[idx]); // 计算绝对差值
@@ -77,7 +77,7 @@ int errorCnt = 0;
 int  blueLED = A3;
 int greenLED = A1;
 int yellowLED = A2;
-
+Buzzer buzzer_0(8);
 
 void setup() {
     passwd = 0;
@@ -134,8 +134,9 @@ void loop() {
           state = 3;
         }
       }
-    }
-    if(digCnt>4){
+      SetUpLED(state);
+      disp_0.display( currentNum);
+      delay(1000);
       digCnt =0;
       currentNum = 0;
       state = 0;
