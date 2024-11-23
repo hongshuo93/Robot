@@ -93,15 +93,18 @@ void SetUpLED(int state){
     digitalWrite(greenLED, HIGH); 
     digitalWrite(yellowLED, LOW); 
     digitalWrite(blueLED, LOW); 
+    buzzer_0.didi();
   }else if(state == 2){
     digitalWrite(greenLED, LOW); 
     digitalWrite(yellowLED, HIGH); 
     digitalWrite(blueLED, LOW); 
+      buzzer_0.didi();
   }else if (state == 3 ){
     digitalWrite(greenLED, LOW); 
     digitalWrite(yellowLED, LOW); 
     digitalWrite(blueLED, HIGH); 
-
+    buzzer_0.didi();
+    delay(500);
   }else if( state == 0){
     digitalWrite(greenLED, LOW); 
     digitalWrite(yellowLED, LOW); 
@@ -129,20 +132,22 @@ void loop() {
         if(errorCnt<3){
             state = 2;
         }else{
-          currentNum = 0;
           errorCnt = 0;
           state = 3;
         }
       }
-      SetUpLED(state);
       disp_0.display( currentNum);
-      delay(1000);
+      SetUpLED(state);
+      delay(500);
       digCnt =0;
       currentNum = 0;
       state = 0;
-    }
-    SetUpLED(state);
+    }else{
     disp_0.display( currentNum);
+      SetUpLED(state);
+   
+    }
+
   
 }
 
