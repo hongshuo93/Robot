@@ -2,6 +2,7 @@
 #include <Kenblock_4DigitalDisplay.h>
 #include <Kenblock_Buzzer.h>
 #include <Servo.h>
+#include <EEPROM.h>
 #define BUZZER_PIN 8 // 蜂鸣器连接的引脚
 FourDigitalDisplay disp_0(PD1);
 Buzzer buzzer_0(8);
@@ -13,16 +14,16 @@ const int yellowLED = A2;
 const int blueLED = A3;
 const int servo_0_pin = 9;
 
-const int rightPasswd = 1234;
+
 const unsigned long debounceDelay = 50; // 防抖延迟时间（单位：毫秒）
 
 int digCnt = 0;
 int currentNum = 0;
 int errorCnt = 0;
 int state = 0;
-
+int adminPasswd = 2424;
 unsigned long lastChangeTime = 0;
-
+int rightPasswd = 1234;
 void setup() {
     Serial.begin(9600);
     pinMode(keyMatrix_0, INPUT_PULLUP);
@@ -32,6 +33,19 @@ void setup() {
 
     servo_0.attach(servo_0_pin);
     servo_0.write(180);
+    
+      // 写入整数2424到EEPROM的地址0
+
+  // 从地址0读取整数
+  int storedValue = 0;
+  EEPROM.get(0, storedValue); // 使用EEPROM.get读取整数
+  if(storedValue>0&&storedValue<=9999){
+      rightPasswd = storedValue;
+  }else{
+      rightPasswd = 1234;
+  }
+  Serial.print("Value read from EEPROM: ");
+  Serial.println(rightPasswd);
 }
 
 void setLEDState(int state) {
