@@ -37,7 +37,7 @@ void setup() {
     pinMode(blueLED, OUTPUT);
 
     servo_0.attach(servo_0_pin);
-    servo_0.write(180);
+    servo_0.write(90);
 
     // 从EEPROM读取初始密码
     int storedValue = 0;
@@ -52,6 +52,9 @@ void setup() {
 }
 
 void setLEDState(int state) {
+    if(state == 1) {
+        servo_0.write(180);
+    }
     digitalWrite(greenLED, state == 1);
     digitalWrite(yellowLED, state == 2);
     digitalWrite(blueLED, state == 3);
@@ -61,6 +64,9 @@ void setLEDState(int state) {
         playErrorSound();
     } else if (state == 3) {
         playErrorMAXSound();
+    }
+    if(state == 1) {
+        servo_0.write(90);
     }
 }
 
@@ -149,6 +155,7 @@ void handleAdminMode() {
             Serial.println("Passwords do not match. Try again.");
             playErrorSound();
         }
+        disp_0.display(currentNum);
         resetInput(); // 确保输入状态完全重置
         newPasswdStage = 0;
     }
