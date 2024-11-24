@@ -3,7 +3,9 @@
 #include <Kenblock_Buzzer.h>
 #include <Servo.h>
 #include <EEPROM.h>
+
 #define BUZZER_PIN 8 // 蜂鸣器连接的引脚
+
 FourDigitalDisplay disp_0(PD1);
 Buzzer buzzer_0(8);
 Servo servo_0;
@@ -14,16 +16,19 @@ const int yellowLED = A2;
 const int blueLED = A3;
 const int servo_0_pin = 9;
 
-
 const unsigned long debounceDelay = 50; // 防抖延迟时间（单位：毫秒）
 
-int digCnt = 0;
-int currentNum = 0;
-int errorCnt = 0;
-int state = 0;
-int adminPasswd = 2424;
-unsigned long lastChangeTime = 0;
-int rightPasswd = 1234;
+int digCnt = 0;           // 当前输入的位数
+int currentNum = 0;       // 当前输入的数字
+int errorCnt = 0;         // 连续错误计数
+int state = 0;            // 当前状态
+int adminPasswd = 2424;   // 管理员密码
+unsigned long lastChangeTime = 0; // 上一次按键时间
+int rightPasswd = 1234;   // 用户密码（存储于 EEPROM）
+bool isAdminMode = false; // 是否进入管理员模式
+int newPasswdStage = 0;   // 密码修改阶段
+int newPasswd = 0;        // 新密码临时存储
+
 void setup() {
     Serial.begin(9600);
     pinMode(keyMatrix_0, INPUT_PULLUP);
@@ -33,19 +38,17 @@ void setup() {
 
     servo_0.attach(servo_0_pin);
     servo_0.write(180);
-    
-      // 写入整数2424到EEPROM的地址0
 
-  // 从地址0读取整数
-  int storedValue = 0;
-  EEPROM.get(0, storedValue); // 使用EEPROM.get读取整数
-  if(storedValue>0&&storedValue<=9999){
-      rightPasswd = storedValue;
-  }else{
-      rightPasswd = 1234;
-  }
-  Serial.print("Value read from EEPROM: ");
-  Serial.println(rightPasswd);
+    // 从EEPROM读取初始密码
+    int storedValue = 0;
+    EEPROM.get(0, storedValue);
+    if (storedValue > 0 && storedValue <= 9999) {
+        rightPasswd = storedValue;
+    } else {
+        rightPasswd = 1234;
+    }
+    Serial.print("Value read from EEPROM: ");
+    Serial.println(rightPasswd);
 }
 
 void setLEDState(int state) {
@@ -54,9 +57,9 @@ void setLEDState(int state) {
     digitalWrite(blueLED, state == 3);
     if (state == 1) {
         playCorrectSound();
-    }else if(state == 2){
+    } else if (state == 2) {
         playErrorSound();
-    }else if(state ==3){
+    } else if (state == 3) {
         playErrorMAXSound();
     }
 }
@@ -92,8 +95,13 @@ void processInput(int num) {
     if (num > 0) {
         digCnt++;
         currentNum = currentNum * 10 + num;
+
         if (digCnt == 4) {
-            if (currentNum == rightPasswd) {
+            if (isAdminMode) {
+                handleAdminMode();
+            } else if (currentNum == adminPasswd) {
+                enterAdminMode();
+            } else if (currentNum == rightPasswd) {
                 errorCnt = 0;
                 state = 1;
             } else {
@@ -104,40 +112,75 @@ void processInput(int num) {
             disp_0.display(currentNum);
             setLEDState(state);
             delay(500);
-            digCnt = 0;
-            currentNum = 0;
-            state = 0;
+            resetInput();
         }
     }
     disp_0.display(currentNum);
     setLEDState(state);
 }
+
+void resetInput() {
+    digCnt = 0;
+    currentNum = 0;
+    state = 0;
+}
+
+void enterAdminMode() {
+    isAdminMode = true;
+    newPasswdStage = 0;
+    newPasswd = 0;
+    state = 0;
+    Serial.println("Admin mode activated. Enter new password.");
+}
+
+void handleAdminMode() {
+    if (newPasswdStage == 0) {
+        newPasswd = currentNum; // 第一次输入的新密码
+        newPasswdStage = 1;
+        Serial.println("Re-enter new password to confirm.");
+    } else if (newPasswdStage == 1) {
+        if (newPasswd == currentNum) { // 第二次输入相同
+            rightPasswd = newPasswd;
+            EEPROM.put(0, rightPasswd); // 存储新密码到EEPROM
+            Serial.println("Password updated successfully.");
+            playCorrectSound();
+            isAdminMode = false; // 退出管理员模式
+        } else {
+            Serial.println("Passwords do not match. Try again.");
+            playErrorSound();
+        }
+        resetInput(); // 确保输入状态完全重置
+        newPasswdStage = 0;
+    }
+}
+
 void playCorrectSound() {
-  tone(BUZZER_PIN, 440, 200); // 440Hz, 持续200ms
-  delay(150);                 // 延迟一小段时间，保证间隔感
-  tone(BUZZER_PIN, 880, 200); // 880Hz, 持续200ms
-  delay(150);                 // 再次延迟，让音效结束
-  noTone(BUZZER_PIN);         // 停止蜂鸣器发声
+    tone(BUZZER_PIN, 440, 200);
+    delay(150);
+    tone(BUZZER_PIN, 880, 200);
+    delay(150);
+    noTone(BUZZER_PIN);
 }
+
 void playErrorSound() {
-  for (int i = 0; i < 3; i++) { // 循环3次，表示连续警告
-    tone(BUZZER_PIN, 300, 150); // 短音，频率300Hz，时长150ms
-    delay(200);                 // 音符之间的间隔
-  }
-  noTone(BUZZER_PIN);           // 停止蜂鸣器发声
+    for (int i = 0; i < 3; i++) {
+        tone(BUZZER_PIN, 300, 150);
+        delay(200);
+    }
+    noTone(BUZZER_PIN);
 }
+
 void playErrorMAXSound() {
-    for (int i = 0; i < 5; i++) { // 循环3次，表示连续警告
-        tone(BUZZER_PIN, 300, 500); // 低频长音，持续500ms
-        delay(250);                 // 停顿一小段时间
-        noTone(BUZZER_PIN);         // 停止蜂鸣器发声
+    for (int i = 0; i < 5; i++) {
+        tone(BUZZER_PIN, 300, 500);
+        delay(250);
+        noTone(BUZZER_PIN);
         delay(50);
     }
-  noTone(BUZZER_PIN);         // 停止蜂鸣器发声
+    noTone(BUZZER_PIN);
 }
+
 void loop() {
     int num = readKey();
     processInput(num);
-
-   
 }
